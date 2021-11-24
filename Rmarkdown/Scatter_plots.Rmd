@@ -1,0 +1,657 @@
+---
+title: "Scatter Plots"
+author: "Liz Hughes"
+date: "24/11/2021"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 2
+  word_document:
+    toc: yes
+    toc_depth: '2'
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE , warning=FALSE, message=FALSE)
+```
+
+# Load packages used for analysis
+
+```{r Load packages used for analysis, include=FALSE}
+
+library(tidyr)
+library(readr)
+library(dplyr)
+library(readxl)
+library(stringr)
+library(ggplot2)
+library(cowplot)
+library(biobroom)
+library(DESeq2)
+library(pheatmap)
+library(RColorBrewer)
+library(magrittr)
+library(markdown)
+library(forcats)
+library(ggrepel)
+library(ggVennDiagram)
+library(gplots)
+
+theme_set(
+  theme_cowplot(font_size = 12) +
+    theme(panel.grid.major = element_line(colour = "grey80", size = 0.5))
+)
+
+```
+
+
+# Load count data and remove unwanted parts of column names
+
+```{r Load count data}
+
+counts <- readr::read_tsv("~/GitHub/CryptoGat201RNASeq_draft_b/quantseqfwd_EH_050221/counts.txt",
+                   comment = "#") %>% 
+          dplyr::rename_with(str_remove_all, pattern = "_S[0-9]+_R1_001_aln.bam")
+
+```
+
+# Load sample sheet and format for DESeq2's requirements: readxl::read_excel
+
+```{r Load sample sheet}
+
+samplesheet <- readxl::read_excel("~/GitHub/CryptoGat201RNASeq_draft_b/input_experiment/Gat201_samplesheet.xlsx") %>%
+    magrittr::set_rownames(.$SampleID)%>%
+    dplyr::mutate(GAT201 = forcats::fct_collapse(Strain, Yes = c("a","A"), No = c("B","M")))
+```
+#RESeq analysis: Scatter plots
+
+## Select RPMI only: Gat201 deletion v WT 
+```{r DESeq_R}
+
+samplesheet_R <- dplyr::filter(samplesheet, Condition == "R")
+                  print(samplesheet_R)
+
+counts_R <-   dplyr::select(counts, samplesheet_R$SampleID) %>%
+               magrittr::set_rownames(counts$Geneid)
+              print(counts_R)
+
+
+
+dds_R <- DESeqDataSetFromMatrix(countData = counts_R,
+                                 colData = samplesheet_R,
+                                 design = ~ GAT201)%>%
+DESeq()
+        
+res <- results(dds_R)
+res
+
+mcols(res, use.names = TRUE)
+
+summary(res)
+
+resultsNames(dds_R)
+results_R <- results(dds_R, name="GAT201_No_vs_Yes")
+
+
+tresults_R <- biobroom::tidy.DESeqResults(results_R)
+head(tresults_R)
+
+tresults_R %>%  
+dplyr::mutate(minus_log10_pvalue = -log10(p.value)) %>%
+readr::write_tsv("~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/Gat201_WT_R.txt")
+
+de_Gat201up_R <- dplyr::filter(tresults_R, estimate > 1, p.adjusted < 0.05) %>%
+              dplyr::arrange(desc(estimate))
+de_Gat201up_R
+
+readr::write_tsv(de_Gat201up_R, "~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/Gat201up_padj05_R.txt")
+readr::write_lines(de_Gat201up_R$gene, "~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/Gat201up_padj05_R_genesonly.csv")
+
+
+de_Gat201down_R <- dplyr::filter(tresults_R, estimate < -1, p.adjusted < 0.05) %>%
+                dplyr::arrange(estimate)
+de_Gat201down_R
+
+readr::write_tsv(de_Gat201down_R, "~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/Gat201down_padj05_R.txt")
+
+readr::write_lines(de_Gat201down_R$gene, "~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/Gat201down_padj05_R_genesonly.csv")
+
+
+```
+
+## Select RPMI + Serum only: Gat201 deletion v WT 
+
+```{r Deseq_RS}
+samplesheet_RS <- dplyr::filter(samplesheet, Condition == "RS")
+                  print(samplesheet_RS)
+
+counts_RS <-   dplyr::select(counts, samplesheet_RS$SampleID) %>%
+               magrittr::set_rownames(counts$Geneid)
+
+
+dds_RS <- DESeqDataSetFromMatrix(countData = counts_RS,
+                                 colData = samplesheet_RS,
+                                 design = ~ GAT201)%>%
+        DESeq()
+
+resRS <- results(dds_RS)
+resRS
+
+mcols(resRS, use.names = TRUE)
+
+summary(resRS)
+
+resultsNames(dds_RS)
+results_RS <- results(dds_RS, name="GAT201_No_vs_Yes")
+
+
+tresults_RS <- biobroom::tidy.DESeqResults(results_RS)
+head(tresults_RS)
+
+tresults_RS %>%  
+dplyr::mutate(minus_log10_pvalue = -log10(p.value)) %>%
+readr::write_tsv("~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/Gat201_WT_RS.txt")
+
+de_Gat201up_RS <- dplyr::filter(tresults_RS, estimate > 1, p.adjusted < 0.05) %>%
+              dplyr::arrange(desc(estimate))
+de_Gat201up_RS
+
+readr::write_tsv(de_Gat201up_RS, "~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/Gat201up_padj05_RS.txt")
+readr::write_lines(de_Gat201up_RS$gene, "~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/Gat201up_padj05_RS_genesonly.csv")
+
+
+de_Gat201down_RS <- dplyr::filter(tresults_RS, estimate < -1, p.adjusted < 0.05) %>%
+                dplyr::arrange(estimate)
+de_Gat201down_RS
+
+readr::write_tsv(de_Gat201down_RS, "~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/Gat201down_padj05_RS.txt")
+
+readr::write_lines(de_Gat201down_RS$gene, "~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/Gat201down_padj05_RS_genesonly.csv")
+
+
+```
+
+
+## Combine tresults_R and tresults_RS
+
+```{r bind tresults_R_RS}
+tresults <- bind_cols(tresults_R, tresults_RS)
+              
+tresults
+```
+
+## Plot Scatter plot: LFC RPMI v LFC RPMI + Serum
+
+```{r plot_scatter_RRS}
+
+  ggplot(data = tresults,
+              aes(x = estimate...3, y = estimate...10))+
+              geom_point(colour = "grey60", size = 0.5, )+
+              xlim(-5, 5) + 
+              ylim(-5, 5) +
+  theme(text = element_text(size = 20))+
+  
+  
+              geom_text_repel(aes(label=ifelse(estimate...3 < -1 & estimate...10 > 1, (gene...1),'')), size= 1.5, max.overlaps = getOption("ggrepel.max.overlaps", default = 10))+
+              geom_text_repel(aes(label=ifelse(estimate...3 > 1 & estimate...10 < -1, (gene...1),'')), size = 1.5, max.overlaps = getOption("ggrepel.max.overlaps", default = 10))+
+  
+              geom_point(data = filter(tresults, 
+                             estimate...3 > 1 & estimate...10 < -1 & p.adjusted...7 < 0.05 & p.adjusted...14 < 0.05),
+                             colour = "blue", size = 2) +
+              
+              geom_point(data = filter(tresults, 
+                             estimate...3 < -1 & estimate...10 > 1 & p.adjusted...7 < 0.05 & p.adjusted...14 < 0.05 ),
+                             colour = "green", size = 2) +
+
+     geom_text_repel(data = filter(tresults, gene...1 =="CNAG_01551"), label="Gat201",hjust = 1.1,vjust = 0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_06762"), label="Gat204",hjust = 1.1,vjust = -1.8, colour= "red")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_063641"),label="Blp1",hjust = 1.1,vjust = -0.5, colour= "red")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_00883"), label="Ecm2201",hjust = 1.1,vjust = -0.5, colour= "red")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_05835"), label="Liv3",hjust = 0,vjust = -0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_03012"), label="CQS1",hjust = 1.1,vjust = -1, colour= "red")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_01681"), label="FCY2",hjust = 1.1,vjust = -0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_06364"), label="BLP1",hjust = 1.1,vjust = -0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_06401"), label="Ric8",hjust = 1.1,vjust = 1, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_07470"), label="Pde2",hjust = 4,vjust = 3, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_06241"), label="Cfo1",hjust = 1.1,vjust = 0.8, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_02777"), label="Pho84",hjust = 0.5,vjust = -0.5, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_04755"), label="Bck1",hjust = 1.1,vjust = 2, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_02357"), label="Mkk2",hjust = 2,vjust = 2.5, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_04514"), label="Mpk1",hjust = 1.1,vjust = -0.8, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_04969"), label="UGD1",hjust = 1.1,vjust = -0.3, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_03024"), label="Rim15",hjust = 1.1,vjust = 1, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults, gene...1 =="CNAG_04864"), label="Cir1",hjust = 1.1,vjust = -3, colour= "red")+
+  
+  
+   geom_hline(aes(yintercept=0), linetype="dashed", colour="black") +
+   geom_vline(aes(xintercept=0), linetype="dashed", colour="black") +
+   geom_abline(intercept = 0, slope = 1, colour = "blue")+
+   labs(x = "LFC RPMI",
+        y = "LFC RPMI + Serum",
+        title="LFC of Genes",
+        subtitle = "Gat201 deletion v WT", 
+        caption = "LFC<-1 or >1; p.adj <0.05")
+  
+
+
+```
+
+```{r}
+
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/LFC_RRS.jpeg",width = 5,height=5 )
+
+```
+
+## Select 30 mins and RPMI: Gat201 deletion v WT 
+
+```{r Deseq_R30}
+
+samplesheet_R30 <- dplyr::filter(samplesheet_R, Time == "30")
+                  print(samplesheet_R30)
+
+counts_R30 <-   dplyr::select(counts, samplesheet_R30$SampleID) %>%
+               magrittr::set_rownames(counts$Geneid)
+
+
+dds_R30 <- DESeqDataSetFromMatrix(countData = counts_R30,
+                                 colData = samplesheet_R30,
+                                 design = ~ GAT201)%>%
+        DESeq()
+
+resR30 <- results(dds_R30)
+resR30
+
+mcols(resR30, use.names = TRUE)
+
+summary(resR30)
+
+resultsNames(dds_R30)
+results_R30 <- results(dds_R30, name="GAT201_No_vs_Yes")
+
+
+tresults_R30 <- biobroom::tidy.DESeqResults(results_R30)
+head(tresults_R30)
+
+```
+
+## Select 2 Hours and RPMI: Gat201 deletion v WT 
+
+```{r Deseq_R2}
+samplesheet_R2 <- dplyr::filter(samplesheet_R, Time == "120")
+                  print(samplesheet_R2)
+
+counts_R2 <-   dplyr::select(counts, samplesheet_R2$SampleID) %>%
+               magrittr::set_rownames(counts$Geneid)
+
+
+
+dds_R2 <- DESeqDataSetFromMatrix(countData = counts_R2,
+                                 colData = samplesheet_R2,
+                                 design = ~ GAT201)%>%
+        DESeq()
+
+resR2 <- results(dds_R2)
+resR2
+
+mcols(resR2, use.names = TRUE)
+
+summary(resR2)
+
+resultsNames(dds_R2)
+results_R2 <- results(dds_R2, name="GAT201_No_vs_Yes")
+
+
+tresults_R2 <- biobroom::tidy.DESeqResults(results_R2)
+head(tresults_R2)
+
+```
+
+## Select 4 Hours and RPMI: Gat201 deletion v WT 
+
+```{r Deseq_R4}
+samplesheet_R4 <- dplyr::filter(samplesheet_R, Time == "240")
+                  print(samplesheet_R4)
+
+counts_R4 <-   dplyr::select(counts, samplesheet_R4$SampleID) %>%
+               magrittr::set_rownames(counts$Geneid)
+
+
+
+dds_R4 <- DESeqDataSetFromMatrix(countData = counts_R4,
+                                 colData = samplesheet_R4,
+                                 design = ~ GAT201)%>%
+        DESeq()
+
+resR4 <- results(dds_R4)
+resR4
+
+mcols(resR4, use.names = TRUE)
+
+summary(resR4)
+
+resultsNames(dds_R4)
+results_R4 <- results(dds_R4, name="GAT201_No_vs_Yes")
+
+
+tresults_R4 <- biobroom::tidy.DESeqResults(results_R4)
+head(tresults_R4)
+
+```
+
+## Select 30 mins and RPMI+Serum: Gat201 deletion v WT 
+
+```{r Deseq_RS30}
+
+samplesheetRS30 <- dplyr::filter(samplesheet_RS, Time == "30")
+                  print(samplesheetRS30)
+
+counts_RS30 <-   dplyr::select(counts, samplesheetRS30$SampleID) %>%
+               magrittr::set_rownames(counts$Geneid)
+
+
+
+dds_RS30 <- DESeqDataSetFromMatrix(countData = counts_RS30,
+                                 colData = samplesheetRS30,
+                                 design = ~ GAT201)%>%
+        DESeq()
+
+resRS30 <- results(dds_RS30)
+resRS30
+
+mcols(resRS30, use.names = TRUE)
+
+summary(resRS30)
+
+resultsNames(dds_RS30)
+results_RS30 <- results(dds_RS30, name="GAT201_No_vs_Yes")
+
+
+tresults_RS30 <- biobroom::tidy.DESeqResults(results_RS30)
+head(tresults_RS30)
+
+```
+
+## Select 2 Hours and RPMI+Serum: Gat201 deletion v WT 
+
+```{r Deseq_RS2}
+
+samplesheet_RS2 <- dplyr::filter(samplesheet_RS, Time == "120")
+                  print(samplesheet_RS2)
+
+counts_RS2 <-   dplyr::select(counts, samplesheet_RS2$SampleID) %>%
+               magrittr::set_rownames(counts$Geneid)
+
+
+
+dds_RS2 <- DESeqDataSetFromMatrix(countData = counts_RS2,
+                                 colData = samplesheet_RS2,
+                                 design = ~ GAT201)%>%
+        DESeq()
+
+resRS2 <- results(dds_RS2)
+resRS2
+
+mcols(resRS2, use.names = TRUE)
+
+summary(resRS2)
+
+resultsNames(dds_RS2)
+results_RS2 <- results(dds_RS2, name="GAT201_No_vs_Yes")
+
+
+tresults_RS2 <- biobroom::tidy.DESeqResults(results_RS2)
+head(tresults_RS2)
+
+```
+
+## Select 4 Hours and RPMI+Serum: Gat201 deletion v WT 
+
+```{r Deseq_RS4}
+
+samplesheet_RS4 <- dplyr::filter(samplesheet_RS, Time == "240")
+                  print(samplesheet_RS4)
+
+counts_RS4 <-   dplyr::select(counts, samplesheet_RS4$SampleID) %>%
+               magrittr::set_rownames(counts$Geneid)
+
+
+
+dds_RS4 <- DESeqDataSetFromMatrix(countData = counts_RS4,
+                                 colData = samplesheet_RS4,
+                                 design = ~ GAT201)%>%
+        DESeq()
+
+resRS4 <- results(dds_RS4)
+resRS4
+
+mcols(resRS4, use.names = TRUE)
+
+summary(resRS4)
+
+resultsNames(dds_RS4)
+results_RS4 <- results(dds_RS4, name="GAT201_No_vs_Yes")
+
+
+tresults_RS4 <- biobroom::tidy.DESeqResults(results_RS4)
+head(tresults_RS4)
+
+```
+
+## Combine tresults_R30 and tresults_RS30
+
+```{r bind R30_RS30}
+
+tresults_30 <- bind_cols(tresults_R30, tresults_RS30)
+              
+tresults_30
+```
+
+## Combine tresults_R2 and tresults_RS2
+
+```{r bind R2_RS2}
+
+tresults_2 <- bind_cols(tresults_R2, tresults_RS2)
+              
+tresults_2
+```
+
+## Combine tresults_R4 and tresults_RS4
+
+```{r bind R4_RS4}
+
+tresults_4 <- bind_cols(tresults_R4, tresults_RS4)
+              
+tresults_4
+```
+
+## Plot Scatter plot: LFC RPMI v LFC RPMI + Serum at 30 min
+
+```{r scatter_30RRS}
+
+  ggplot(data = tresults_30,
+              aes(x = estimate...3, y = estimate...10))+
+              geom_point(colour = "grey60", size = 0.5, )+
+              xlim(-5, 5) + 
+              ylim(-5, 5) +
+  theme(text = element_text(size = 20))+
+  
+  
+              geom_text_repel(aes(label=ifelse(estimate...3 < -1 & estimate...10 > 1, (gene...1),'')), size= 1.5, max.overlaps = getOption("ggrepel.max.overlaps", default = 10))+
+              geom_text_repel(aes(label=ifelse(estimate...3 > 1 & estimate...10 < -1, (gene...1),'')), size = 1.5, max.overlaps = getOption("ggrepel.max.overlaps", default = 10))+
+  
+              geom_point(data = filter(tresults_30, 
+                             estimate...3 > 1 & estimate...10 < -1 & p.adjusted...7 < 0.05 & p.adjusted...14 < 0.05),
+                             colour = "blue", size = 2) +
+              
+              geom_point(data = filter(tresults_30, 
+                             estimate...3 < -1 & estimate...10 > 1 & p.adjusted...7 < 0.05 & p.adjusted...14 < 0.05 ),
+                             colour = "green", size = 2) +
+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_01551"), label="Gat201",hjust = 1.1,vjust = 0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_06762"), label="Gat204",hjust = 1.1,vjust = -2, colour= "red")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_063641"),label="Blp1",hjust = 1.1,vjust = -0.5, colour= "red")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_00883"), label="Ecm2201",hjust = 1.1,vjust = -0.5, colour= "red")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_05835"), label="Liv3",hjust = 1.1,vjust = -0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_03012"), label="CQS1",hjust = 1.1,vjust = -1, colour= "red")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_01681"), label="FCY2",hjust = 1.1,vjust = -0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_06364"), label="BLP1",hjust = 1.1,vjust = -0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_06401"), label="Ric8",hjust = 1.1,vjust = 1, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_07470"), label="Pde2",hjust = 1,vjust = 1, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_06241"), label="Cfo1",hjust = 1.1,vjust = 0.8, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_02777"), label="Pho84",hjust = 1.1,vjust = 1, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_04755"), label="Bck1",hjust = 1.1,vjust = 2, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_02357"), label="Mkk2",hjust = 1.1,vjust = 2.5, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_04514"), label="Mpk1",hjust = 1.1,vjust = -0.8, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_04969"), label="UGD1",hjust = 1.1,vjust = -0.3, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_03024"), label="Rim15",hjust = 1.1,vjust = 1.5, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_30, gene...1 =="CNAG_04864"), label="Cir1",hjust = 1.1,vjust = -3, colour= "red")+
+   geom_hline(aes(yintercept=0), linetype="dashed", colour="black") +
+   geom_vline(aes(xintercept=0), linetype="dashed", colour="black") +
+   geom_abline(intercept = 0, slope = 1, colour = "blue")+
+   labs(x = "LFC RPMI",
+        y = "LFC RPMI + Serum",
+        title="LFC of Genes: 30 Min",
+        subtitle = "Gat201 deletion v WT",
+        caption = "LFC<-1 or >1; p.adj <0.05")
+  
+
+
+```
+
+```{r save_RRS30}
+
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/LFC_RRS30.jpeg", width = 5,height=5)
+
+```
+
+## Plot Scatter plot: LFC RPMI v LFC RPMI + Serum at 2 Hours
+
+```{r scatter_2RRS}
+
+  ggplot(data = tresults_2,
+              aes(x = estimate...3, y = estimate...10))+
+              geom_point(colour = "grey60", size = 0.5, )+
+              xlim(-5, 5) + 
+              ylim(-5, 5) +
+  theme(text = element_text(size = 20))+
+  
+  
+              geom_text_repel(aes(label=ifelse(estimate...3 < -1 & estimate...10 > 1, (gene...1),'')), size= 1.5, max.overlaps = getOption("ggrepel.max.overlaps", default = 10))+
+              geom_text_repel(aes(label=ifelse(estimate...3 > 1 & estimate...10 < -1, (gene...1),'')), size = 1.5, max.overlaps = getOption("ggrepel.max.overlaps", default = 10))+
+  
+              geom_point(data = filter(tresults_2, 
+                             estimate...3 > 1 & estimate...10 < -1 & p.adjusted...7 < 0.05 & p.adjusted...14 < 0.05),
+                             colour = "blue", size = 2) +
+              
+              geom_point(data = filter(tresults_2, 
+                             estimate...3 < -1 & estimate...10 > 1 & p.adjusted...7 < 0.05 & p.adjusted...14 < 0.05 ),
+                             colour = "green", size = 2) +
+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_01551"), label="Gat201",hjust = 1.1,vjust = 0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_06762"), label="Gat204",hjust = 2,vjust = -0.5, colour= "red")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_063641"),label="Blp1",hjust = 1.1,vjust = -0.5, colour= "red")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_00883"), label="Ecm2201",hjust = 0,vjust = -0.5, colour= "red")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_05835"), label="Liv3",hjust = 1.1,vjust = -0.5, colour= "red")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_03012"), label="CQS1",hjust = 1.1,vjust = -1, colour= "red")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_01681"), label="FCY2",hjust = 1.1,vjust = -0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_06364"), label="BLP1",hjust = 1.1,vjust = -0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_06401"), label="Ric8",hjust = 1.1,vjust = 1, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_07470"), label="Pde2",hjust = 1,vjust = 1, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_06241"), label="Cfo1",hjust = 1.1,vjust = 0.8, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_02777"), label="Pho84",hjust = 1.1,vjust = 1, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_04755"), label="Bck1",hjust = 1.1,vjust = 2, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_02357"), label="Mkk2",hjust = 1.1,vjust = 2.5, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_04514"), label="Mpk1",hjust = 1.1,vjust = -0.8, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_04969"), label="UGD1",hjust = 1.1,vjust = -0.3, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_03024"), label="Rim15",hjust = 1.1,vjust = 1.5, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_2, gene...1 =="CNAG_04864"), label="Cir1",hjust = 1.1,vjust = -3, colour= "red")+
+   geom_hline(aes(yintercept=0), linetype="dashed", colour="black") +
+   geom_vline(aes(xintercept=0), linetype="dashed", colour="black") +
+   geom_abline(intercept = 0, slope = 1, colour = "blue")+
+   labs(x = "LFC RPMI",
+        y = "LFC RPMI + Serum",
+        title="LFC of Genes: 2 Hours",
+        subtitle = "Gat201 deletion v WT",
+        caption = "LFC<-1 or >1; p.adj <0.05")
+  
+
+
+```
+
+
+```{r save_RRS2}
+
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/LFC_RRS2.jpeg", width = 5,height=5)
+
+```
+
+## Plot Scatter plot: LFC RPMI v LFC RPMI + Serum at 4 Hours
+
+```{r scatter_4RRS}
+
+  ggplot(data = tresults_4,
+              aes(x = estimate...3, y = estimate...10))+
+              geom_point(colour = "grey60", size = 0.5, )+
+              xlim(-5, 5) + 
+              ylim(-5, 5) +
+  theme(text = element_text(size = 20))+
+  
+  
+              geom_text_repel(aes(label=ifelse(estimate...3 < -1 & estimate...10 > 1, (gene...1),'')), size= 1.5, max.overlaps = getOption("ggrepel.max.overlaps", default = 10))+
+              geom_text_repel(aes(label=ifelse(estimate...3 > 1 & estimate...10 < -1, (gene...1),'')), size = 1.5, max.overlaps = getOption("ggrepel.max.overlaps", default = 10))+
+  
+              geom_point(data = filter(tresults_4, 
+                             estimate...3 > 1 & estimate...10 < -1 & p.adjusted...7 < 0.05 & p.adjusted...14 < 0.05),
+                             colour = "blue", size = 2) +
+              
+              geom_point(data = filter(tresults_4, 
+                             estimate...3 < -1 & estimate...10 > 1 & p.adjusted...7 < 0.05 & p.adjusted...14 < 0.05 ),
+                             colour = "green", size = 2) +
+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_01551"), label="Gat201",hjust = 1.1,vjust = -0.3, colour= "red")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_06762"), label="Gat204",hjust = 1.1,vjust = -1, colour= "red")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_063641"), label="Blp1",hjust = 1.1,vjust = -0.5, colour= "red")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_00883"), label="Ecm2201",hjust = 1.1,vjust = -0.5, colour= "red")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_05835"), label="Liv3",hjust = 1.1,vjust = -0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_03012"), label="CQS1",hjust = 1.1,vjust = -1, colour= "red")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_01681"), label="FCY2",hjust = 1.1,vjust = -0.5, colour= "red")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_06364"), label="BLP1",hjust = 1.1,vjust = -0.8, colour= "red")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_06401"), label="Ric8",hjust = 1.1,vjust = 1, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_07470"), label="Pde2",hjust = 1.1,vjust = 1.5, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_06241"), label="Cfo1",hjust = -0.5,vjust = -0.5, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_02777"), label="Pho84",hjust = 1.1,vjust = -0.5, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_04755"), label="Bck1",hjust = 1.1,vjust = 3, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_02357"), label="Mkk2",hjust = -0.8,vjust = 2, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_04514"), label="Mpk1",hjust = 1.1,vjust = 1.5, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_04969"), label="UGD1",hjust = 1.1,vjust = -0.3, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_03024"), label="Rim15",hjust = 1.1,vjust = -0.5, colour= "darkgreen")+
+    geom_text_repel(data = filter(tresults_4, gene...1 =="CNAG_04864"), label="Cir1",hjust = 1.1,vjust = -3, colour= "red")+
+   geom_hline(aes(yintercept=0), linetype="dashed", colour="black") +
+   geom_vline(aes(xintercept=0), linetype="dashed", colour="black") +
+   geom_abline(intercept = 0, slope = 1, colour = "blue")+
+   labs(x = "LFC RPMI",
+        y = "LFC RPMI + Serum",
+        title="LFC of Genes: 4 Hours",
+        subtitle = "Gat201 deletion v WT",
+        caption = "LFC<-1 or >1; p.adj <0.05")
+  
+
+
+```
+
+```{r save_RRS4}
+
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/results_deseq/LFC_RRS4.jpeg", width = 5,height=5)
+
+```
+
+
+
+
+
+
+
+
+
