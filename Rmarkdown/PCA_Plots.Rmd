@@ -184,12 +184,8 @@ plotPCA <- function (object, intgroup = "condition", ntop = 500, returnData = FA
 
 ```
 
-```{r PC12}
-PC12_Time <- print(plotPCA(rld_all, intgroup = c("GAT201", "Time")))
-PC12_Cond <- print(plotPCA(rld_all, intgroup = c("GAT201", "Condition")))
 
 
-```
 
 
 ```{r PC23}
