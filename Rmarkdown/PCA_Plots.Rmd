@@ -35,6 +35,8 @@ library(RColorBrewer)
 library(magrittr)
 library(markdown)
 library(forcats)
+library(genefilter)
+library(ggrepel)
 
 
 theme_set(
@@ -94,30 +96,148 @@ rld_all <- rlog(dds_all)
 ```
 
 
+
+
+
 # PCA Plot for All, 0 Hours, 30 Mins, 2 Hours and 4 Hours using rlog transformation
 
-##Plot PCA for All
+## Plot PCA for All
+
+```{r PC1-5}
+ntop <- 500
+rv <- rowVars(assay(rld_all))
+select <- order(rv, decreasing = TRUE)[seq_len(min(ntop, length(rv)))]
+mat <- t( assay(rld_all)[select, ] )
+
+pca <-prcomp(mat)
+pca <- as.data.frame(pca$x)
+
+pca$PC1
+pca$PC2
+pca$PC3
+pca$PC4
+pca$PC5
+
+percentVar <- pca$sdev^2 / sum( pca$sdev^2 )
+
+```
 
 
-```{r PCA_Plot_rld_All}
+```{r ggplot}
 
-plotPCA(rld_All, intgroup = c("Strain", "Condition", "Time"))
+ ggplot(data = pca,
+              aes(x = PC1, y = PC2)) +
+    geom_point() +
+    
+    labs(x="PC1", 
+         y="PC2", 
+         title = "PCA Analysis") +
+    theme(text = element_text(size = 22))
 
-plotPCA(rld_All, intgroup = c("GAT201", "Condition", "Time"))
+ ggplot(data = pca,
+              aes(x = PC2, y = PC3)) +
+    geom_point() +
+    
+    labs(x="PC2", 
+         y="PC3", 
+         title = "PCA Analysis") +
+    theme(text = element_text(size = 22))
 
-plotPCA(rld_All, intgroup = c("GAT201", "Condition"))
+```
 
-plotPCA(rld_All, intgroup = c("GAT201", "Time"))
+```{r function}
 
-plotPCA(rld_All, intgroup = c("Time", "Condition"))
+#getMethod("plotPCA","DESeqTransform")
+#DESeq2:::plotPCA.DESeqTransform
 
-plotPCA(rld_All, intgroup = c("Strain"))
+plotPCA <- function (object, intgroup = "condition", ntop = 500, returnData = FALSE) 
+{
+    rv <- rowVars(assay(object))
+    select <- order(rv, decreasing = TRUE)[seq_len(min(ntop, 
+        length(rv)))]
+    pca <- prcomp(t(assay(object)[select, ]))
+    percentVar <- pca$sdev^2/sum(pca$sdev^2)
+    if (!all(intgroup %in% names(colData(object)))) {
+        stop("the argument 'intgroup' should specify columns of colData(dds)")
+    }
+    intgroup.df <- as.data.frame(colData(object)[, intgroup, 
+        drop = FALSE])
+    group <- if (length(intgroup) > 1) {
+        factor(apply(intgroup.df, 1, paste, collapse = " : "))
+    }
+    else {
+        colData(object)[[intgroup]]
+    }
+    d <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], PC3 = pca$x[, 3], PC4 = pca$x[, 4], PC5 = pca$x[, 5], group = group, 
+        intgroup.df, name = colnames(object))
+    if (returnData) {
+        attr(d, "percentVar") <- percentVar[4:5]
+        return(d)
+    }
+    ggplot(data = d, aes_string(x = "PC4", y = "PC5", color = "group")) + 
+        geom_point(size = 3) + xlab(paste0("PC4: ", round(percentVar[4] * 
+        100), "% variance")) + ylab(paste0("PC5: ", round(percentVar[5] * 
+        100), "% variance")) + coord_fixed()
+    
+  }
 
-plotPCA(rld_All, intgroup = c("GAT201"))
 
-plotPCA(rld_All, intgroup = c("Condition"))
+```
 
-plotPCA(rld_All, intgroup = c("Time"))
+```{r PC12}
+PC12_Time <- print(plotPCA(rld_all, intgroup = c("GAT201", "Time")))
+PC12_Cond <- print(plotPCA(rld_all, intgroup = c("GAT201", "Condition")))
+
+
+```
+
+
+```{r PC23}
+PC23_Time <- print(plotPCA(rld_all, intgroup = c("GAT201", "Time")))
+PC23_Cond <- print(plotPCA(rld_all, intgroup = c("GAT201", "Condition")))
+
+```
+
+
+```{r PC34}
+PC34_Time <- print(plotPCA(rld_all, intgroup = c("GAT201", "Time")))
+PC34_Cond <-print(plotPCA(rld_all, intgroup = c("GAT201", "Condition")))
+
+```
+
+
+```{r PC45}
+PC45_Time <-print(plotPCA(rld_all, intgroup = c("GAT201", "Time")))
+PC45_Cond <-print(plotPCA(rld_all, intgroup = c("GAT201", "Condition")))
+
+```
+
+
+
+
+
+
+```{r PCA_Plot_All}
+
+
+
+plotPCA(rld_all, intgroup = c("Strain", "Condition", "Time"))
+
+plotPCA(rld_all, intgroup = c("GAT201", "Condition", "Time"))
+
+plotPCA(rld_all, intgroup = c("GAT201", "Condition"))
+
+plotPCA(rld_all, intgroup = c("GAT201", "Time"))
+
+plotPCA(rld_all, intgroup = c("Time", "Condition"))
+
+plotPCA(rld_all, intgroup = c("Strain"))
+
+plotPCA(rld_all, intgroup = c("GAT201"))
+
+plotPCA(rld_all, intgroup = c("Condition"))
+
+plotPCA(rld_all, intgroup = c("Time"))
        
 ```
 
@@ -322,7 +442,7 @@ ggsave("~/GitHub/CryptoGat201RNASeq_draft_Liz/results_counts/plot_pca_PC12_Condi
 
 ## Plot second and third principal components 
 
-```{r PC23}
+```{r PC23a}
 plot_pca_PC23_Condition <- 
 pca_log10foldchange_mintpm20 %>%
     broom::tidy(matrix = "rotation") 
@@ -348,7 +468,7 @@ plot_pca_PC23_Conditionb
 
 ## Plot third and fourth principal components 
 
-```{r PC34}
+```{r PC34a}
 plot_pca_PC34_Condition <- 
 pca_log10foldchange_mintpm20 %>%
     broom::tidy(matrix = "rotation") 
@@ -373,7 +493,7 @@ plot_pca_PC34_Conditionb
 
 ## Plot  fourth and fifthprincipal components
 
-```{r PC45}
+```{r PC45a}
 plot_pca_PC45_Condition <- 
 pca_log10foldchange_mintpm20 %>%
     broom::tidy(matrix = "rotation") 
