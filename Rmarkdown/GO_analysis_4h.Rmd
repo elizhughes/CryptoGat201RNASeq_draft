@@ -1,0 +1,464 @@
+---
+title: "GO analysis Fig 4"
+author: "Liz Hughes and Edward Wallace"
+date: "07/01/2022"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 2
+  word_document:
+    toc: yes
+    toc_depth: '2'
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE , warning=FALSE, message=FALSE)
+```
+
+# Summary
+
+This document is an analysis of the Gat201 RNA-seq dataset, focusing on differences GO terms up and down regulated in WT at 4 hours for fig 4 multi panel.
+
+The first goal is calculating up and down regulated genes at the 4 hour time point.
+
+A later goal is lists of Gat201-DEGs for analysis of GO terms.
+
+
+# Load packages used for analysis
+
+```{r load_packages, include=FALSE}
+
+library(tidyr)
+library(readr)
+library(dplyr)
+library(readxl)
+library(stringr)
+library(ggplot2)
+library(cowplot)
+library(biobroom)
+library(DESeq2)
+library(pheatmap)
+library(RColorBrewer)
+library(magrittr)
+library(markdown)
+library(forcats)
+library(genefilter)
+library(ggrepel)
+
+
+theme_set(
+  theme_cowplot(font_size = 12) +
+    theme(panel.grid.major = element_line(colour = "grey80", size = 0.5))
+)
+
+```
+
+
+# Load GO analysis data 
+
+Up and Down regulated DEG lists comparing WT v Gat201 deletion at 4 hours was uploaded into fungi db to create a search strategy.
+
+Analyze Results > Gene Ontology Enrichment > select BP, MF or CC > Submit
+
+Open in Revigo > Select Large, P Value, Yes, Whole UniProt database, SimRel > Start Revigo
+
+Export to R script for plotting > save one.data file 
+
+e.g. readr::write_tsv(one.data , "../GOresults/UR4_WT_BP.csv")
+
+Save files for each BP, MF and CC analysis and combine them all here before making plot in ggplot2 of All GO terms.
+
+
+
+## Up regulated in WT at 4 hours in RPMI
+
+```{r GO_data_Up}
+
+BP_Up <- readr::read_tsv("../GOresults/UR4_WT_BP.csv")
+MF_Up <- readr::read_tsv("../GOresults/UR4_WT_MF.csv")
+CC_Up <- readr::read_tsv("../GOresults/UR4_WT_CC.csv")
+```
+
+```{r 1}
+UR4_WT_MF <- ggplot(MF_Up, aes(value,description,  fill = description))+
+  theme(legend.position ="none")+
+  geom_bar(stat = "identity")+
+  labs(title = "MF 4 Hours Up RPMI",
+       x = "Frequency", y = "")+
+                  theme(text = element_text(size = 15))+
+                  theme(axis.text.x = element_text(size= 5, angle = 90))+
+                  scale_color_brewer(palette="Set1")
+
+print(UR4_WT_MF)
+```
+
+
+```{r 2}
+UR4_WT_BP <- ggplot(BP_Up, aes(frequency,description,  fill = description))+
+  theme(legend.position ="none")+
+  geom_bar(stat = "identity")+
+  labs(title = "BP 4 Hours Up RPMI",
+       x = "Frequency", y = "")+
+                  theme(text = element_text(size = 15))+
+                  theme(axis.text.y = element_text(size= 5))+
+                  scale_color_brewer(palette="Set1")
+
+print(UR4_WT_BP)
+```
+
+```{r 3}
+UR4_WT_CC <- ggplot(CC_Up, aes(frequency,description,  fill = description))+
+  theme(legend.position ="none")+
+  geom_bar(stat = "identity")+
+  labs(title = "WT 4 Hours Up RPMI",
+       x = "Frequency", y = "")+
+                  theme(text = element_text(size = 15))+
+                  theme(axis.text.x = element_text(size= 5, angle = 90))+
+                  scale_color_brewer(palette="Set1")
+
+print(UR4_WT_CC)
+```
+
+
+
+
+
+```{r rbind_Up}
+
+UR4_all <- rbind(BP_Up, MF_Up,CC_Up)
+
+UR4_all
+
+readr::write_tsv(UR4_all, "../GOresults/UR4_all.csv")
+```
+
+
+
+
+
+
+```{r plot_Up}
+UR4_WT_all_Up <- ggplot(UR4_all, aes(frequency,description,  fill = description))+
+  theme(legend.position ="none")+
+  geom_bar(stat = "identity")+
+  labs(title = "WT 4 Hours Up RPMI",
+       x = "Frequency", y = "")+
+                  theme(text = element_text(size = 20))+
+                  theme(axis.text.x = element_text(size= 5, angle = 90))+
+                  scale_color_brewer(palette="Set1")
+
+print(UR4_WT_all_Up)
+
+ggsave("~/Edward Wallace/Lab based work/RNA Seq/UR4_WT_all.jpg",
+       width = 5,height=5)
+```
+
+## Down regulated in WT at 4 hours in RPMI
+
+```{r GO_data_Down}
+
+BP_Down <- readr::read_tsv("../GOresults/DR4_WT_BP.csv")
+MF_Down <- readr::read_tsv("../GOresults/DR4_WT_MF.csv")
+CC_Down <- readr::read_tsv("../GOresults/DR4_WT_CC.csv")
+```
+
+```{r rbind_Down}
+DR4_all <- rbind(BP_Down, MF_Down,CC_Down)
+
+DR4_all
+
+readr::write_tsv(DR4_all, "../GOresults/DR4_all.csv")
+```
+
+```{r plot_Down}
+#frequency = The proportion of this GO term in the underlying protein annotatoin dtabase (whole uniprot). A higher frequency indicated more general terms and a lower frequency more specific terms.
+
+DR4_WT_all_Down <- ggplot(DR4_all, aes( value, description, fill = description))+
+                  theme(legend.position ="none")+
+                  geom_bar(stat = "identity")+
+  
+                  labs(title = "WT 4 Hours Down RPMI",
+                           x = "", 
+                           y = "")+
+                  theme(text = element_text(size = 10))+
+                  theme(axis.text.y = element_text(size = 5))+
+                  scale_color_brewer(palette="Set1")
+
+DR4_WT_all_Down
+
+
+
+        
+
+```
+# Load GO analysis data2 
+
+Up and Down regulated DEG lists comparing WT v Gat201 deletion at 4 hours was uploaded into fungi db to create a search strategy.
+
+Use results tables from fungidb: Go term, no genes, % background genes ( % of my genes of the genes in the background with this term),P-value and adjusted p-value (Bonferroni)
+
+Analyze Results > Gene Ontology Enrichment > select BP, MF or CC (P-Value cuttoff = 0.05) > Submit > download .txt file.
+
+Import .txt file into excell > open document >Data tab > From text/csv > save as .csv file
+# Up regulated
+```{r load_up}
+U4_BP <- readr::read_csv("../GOresults/BP_up4.csv")
+U4_MF <- readr::read_csv("../GOresults/MF_up4.csv")
+U4_CC <- readr::read_csv("../GOresults/CC_up4.csv")
+```
+
+```{r}
+U4_BP['GO_group'] <- "BP"
+U4_MF['GO_group'] <- "MF"
+U4_CC['GO_group'] <- "CC"
+
+```
+
+## Biological Process
+```{r bp_plot_up}
+Up4BP <- ggplot(U4_BP, aes(genes,description,  fill = description))+
+         geom_bar(stat = "identity")+
+                  labs(title = "BP up-reg 4hrs",
+                            x = "No. of Genes", 
+                            y = "")+
+          theme(legend.position ="none")+
+          theme(text = element_text(size = 15))+
+          theme(axis.text.y = element_text(size= 4))+
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+         
+
+print(Up4BP)
+
+```
+
+
+```{r save1}
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/BP_up4.png", width = 8, height = 5)
+```
+
+## Molecular Function
+```{r mf_plot_up}
+
+Up4MF <- ggplot(U4_MF, aes(genes,description,  fill = description))+
+         geom_bar(stat = "identity")+
+                  labs(title = "MF up-reg 4hrs",
+                            x = "No. of Genes", 
+                            y = "")+
+          theme(legend.position ="none")+
+          theme(text = element_text(size = 15))+
+          theme(axis.text.y = element_text(size= 4))+
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+print(Up4MF)
+
+```
+
+
+```{r save2}
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/MF_up4.png", width = 8, height = 5)
+```
+
+## Cellular Component
+
+```{r cc_plot_up}
+Up4CC <- ggplot(U4_CC, aes(genes,description,  fill = description))+
+         geom_bar(stat = "identity")+
+                  labs(title = "CC up-reg 4hrs",
+                            x = "No. of Genes", 
+                            y = "")+
+          theme(legend.position ="none")+
+          theme(text = element_text(size = 15))+
+          theme(axis.text.y = element_text(size= 8))+
+          scale_color_brewer(palette="Set1")+
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+print(Up4CC)
+
+```
+
+
+```{r save3}
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/CC_up4.png", width = 8, height = 5)
+```
+
+## Combine all 3 GO groups up regulated (BP, MF, CC)
+
+```{r}
+Upreg4_all <- rbind(U4_BP, U4_MF, U4_CC)
+
+head(Upreg4_all)
+
+Upreg4_all <- transform(Upreg4_all,description=factor(description,levels=unique(description)))
+
+#Upreg4_all$description <- factor(Upreg4_all$description , levels = Upreg4_all$description )
+
+```
+
+## Plot all 3 GO upregulated
+```{r all_plot_up}
+
+Up4all <- ggplot(Upreg4_all , aes(description, genes, fill = description))+
+         geom_bar(stat = "identity")+
+                  labs(title = "up-regulated genes at 4hrs",
+                            x = "", 
+                            y = "No. of genes")+
+          theme(legend.position ="none")+
+          theme(text = element_text(size = 15))+
+          theme(axis.text.x = element_text(size= 4, angle = 90,hjust=1,vjust=0.2))+
+          scale_color_brewer(palette="Set1")+
+  geom_vline(xintercept=94.5, linetype="dashed", color = "black")+
+  geom_vline(xintercept=134.5, linetype="dashed", color = "black")+
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+print(Up4all )
+```
+```{r save3.5}
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/Up4all.png", width = 8, height = 5)
+```
+
+
+# Down regulated
+
+```{r load_down}
+D4_BP <- readr::read_csv("../GOresults/BP_dn4.csv")
+D4_MF <- readr::read_csv("../GOresults/MF_dn4.csv")
+D4_CC <- readr::read_csv("../GOresults/CC_dn4.csv")
+```
+
+
+```{r}
+D4_BP['GO_group'] <- "BP"
+D4_MF['GO_group'] <- "MF"
+D4_CC['GO_group'] <- "CC"
+
+```
+## Biological Process
+
+```{r bp_plot_down}
+Dn4BP <- ggplot(D4_BP, aes(genes,description,  fill = description))+
+         geom_bar(stat = "identity")+
+                  labs(title = "BP down-reg 4hrs",
+                            x = "No. of Genes", 
+                            y = "")+
+          theme(legend.position ="none")+
+          theme(text = element_text(size = 15))+
+          theme(axis.text.y = element_text(size= 4))+
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+         
+
+print(Dn4BP)
+
+```
+
+
+```{r save4}
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/BP_down4.png", width = 8, height = 5)
+```
+
+## Molecular Function
+
+```{r mf_plot_down}
+
+Dn4MF <- ggplot(D4_MF, aes(genes,description,  fill = description))+
+         geom_bar(stat = "identity")+
+                  labs(title = "MF down-reg 4hrs",
+                            x = "No. of Genes", 
+                            y = "")+
+          theme(legend.position ="none")+
+          theme(text = element_text(size = 15))+
+          theme(axis.text.y = element_text(size= 4))+
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+print(Dn4MF)
+
+```
+
+
+```{r save5}
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/MF_down4.png", width = 8, height = 5)
+```
+
+## Cellular Component
+
+```{r cc_plot_down}
+Dn4CC <- ggplot(D4_CC, aes(genes,description,  fill = description))+
+         geom_bar(stat = "identity")+
+                  labs(title = "CC down-reg 4hrs",
+                            x = "No. of Genes", 
+                            y = "")+
+          theme(legend.position ="none")+
+          theme(text = element_text(size = 15))+
+          theme(axis.text.y = element_text(size= 8))+
+          scale_color_brewer(palette="Set1")+
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+print(Dn4CC)
+
+```
+
+
+```{r save6}
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/CC_down4.png", width = 8, height = 5)
+```
+
+## Combine all 3 GO groups down regulated (BP, MF, CC)
+
+```{r}
+Dnreg4_all <- rbind(D4_BP, D4_MF, D4_CC)
+
+head(Dnreg4_all)
+
+Dnreg4_all <- transform(Dnreg4_all,description=factor(description,levels=unique(description)))
+
+
+```
+
+## Plot all 3 GO down -regulated
+```{r all_plot_down}
+
+Dn4all <- ggplot(Dnreg4_all , aes(description, genes, fill = description))+
+         geom_bar(stat = "identity")+
+                  labs(title = "down-regulated genes at 4hrs",
+                            x = "", 
+                            y = "No. of genes")+
+          theme(legend.position ="none")+
+          theme(text = element_text(size = 15))+
+          theme(axis.text.x = element_text(size= 4, angle = 90,hjust=1,vjust=0.2))+
+  geom_vline(xintercept=32.5, linetype="dashed", color = "black")+
+  geom_vline(xintercept=64.5, linetype="dashed", color = "black")+
+          scale_color_brewer(palette="Set1")+
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+print(Dn4all )
+```
+```{r save7}
+ggsave("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/Dn4all.png", width = 8, height = 5)
+```
+

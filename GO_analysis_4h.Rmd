@@ -1,0 +1,146 @@
+---
+title: "GO analysis Fig 4"
+author: "Liz Hughes and Edward Wallace"
+date: "07/01/2022"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 2
+  word_document:
+    toc: yes
+    toc_depth: '2'
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE , warning=FALSE, message=FALSE)
+```
+
+# Summary
+
+This document is an analysis of the Gat201 RNA-seq dataset, focusing on differences GO terms up and down regulated in WT at 4 hours for fig 4 multi panel.
+
+The first goal is calculating up and down regulated genes at the 4 hour time point.
+
+A later goal is lists of Gat201-DEGs for analysis of GO terms.
+
+
+# Load packages used for analysis
+
+```{r load_packages, include=FALSE}
+
+library(tidyr)
+library(readr)
+library(dplyr)
+library(readxl)
+library(stringr)
+library(ggplot2)
+library(cowplot)
+library(biobroom)
+library(DESeq2)
+library(pheatmap)
+library(RColorBrewer)
+library(magrittr)
+library(markdown)
+library(forcats)
+library(genefilter)
+library(ggrepel)
+
+
+theme_set(
+  theme_cowplot(font_size = 12) +
+    theme(panel.grid.major = element_line(colour = "grey80", size = 0.5))
+)
+
+```
+
+
+# Load GO analysis data 
+
+Up and Down regulated DEG lists comparing WT v Gat201 deletion at 4 hours was uploaded into fungi db to create a search strategy.
+
+Analyze Results > Gene Ontology Enrichment > select BP, MF or CC > Submit
+
+Open in Revigo > Select Large, P Value, Yes, Whole UniProt database, SimRel > Start Revigo
+
+Export to R script for plotting > save one.data file 
+
+e.g. readr::write_tsv(one.data , "~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/UR4_WT_BP.csv")
+
+Save files for each BP, MF and CC analysis and combine them all here before making plot in ggplot2 of All GO terms.
+
+## Up regulated in WT at 4 hours in RPMI
+
+```{r GO_data_Up}
+
+
+BP_Up <- readr::read_tsv("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/UR4_WT_BP.csv")
+MF_Up <- readr::read_tsv("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/UR4_WT_MF.csv")
+CC_Up <- readr::read_tsv("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/UR4_WT_CC.csv")
+```
+
+```{r rbind_Up}
+UR4_all <- rbind(BP_Up, MF_Up,CC_Up)
+
+UR4_all
+
+readr::write_tsv(UR4_all, "~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/UR4_all.csv")
+```
+
+```{r plot_Up}
+UR4_WT_all_Up <- ggplot(UR4_all, aes(description, frequency, fill = description))+
+  theme(legend.position ="none")+
+  geom_bar(stat = "identity")+
+  labs(title = "WT 4 Hours Up RPMI",
+       x = "", y = "Frequency")
+
+print(UR4_WT_all_Up)
+```
+
+## Down regulated in WT at 4 hours in RPMI
+
+```{r GO_data_Down}
+
+
+BP_Down <- readr::read_tsv("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/DR4_WT_BP.csv")
+MF_Down <- readr::read_tsv("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/DR4_WT_MF.csv")
+CC_Down <- readr::read_tsv("~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/DR4_WT_CC.csv")
+```
+
+```{r rbind_Down}
+DR4_all <- rbind(BP_Down, MF_Down,CC_Down)
+
+DR4_all
+
+readr::write_tsv(DR4_all, "~/GitHub/CryptoGat201RNASeq_draft_b/GOresults/DR4_all.csv")
+```
+
+```{r plot_Down}
+
+DR4_WT_all_Down <- ggplot(DR4_all, aes(description, frequency, fill = description))+
+  theme(legend.position ="none")+
+  geom_bar(stat = "identity")+
+  
+  labs(title = "WT 4 Hours Down RPMI",
+       x = "", y = "Frequency")
+
+print(DR4_WT_all_Down)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
